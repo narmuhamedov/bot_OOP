@@ -2,7 +2,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from core.quiz import Quiz
-
+from core.roulette import RussianRouletteGame
 
 class BotHandlers:
     def __init__(self, bot):
@@ -10,11 +10,21 @@ class BotHandlers:
         self.bot = bot  # Сохраняем экземпляр бота
         self.quiz = Quiz()
         self.user_data = {}  # хранение состояния пользователей
+
+        self.roulette_games = {}
+
         self.register_handlers()
+
 
     def register_handlers(self):
         self.router.message.register(self.start_command, Command("start"))
         self.router.message.register(self.start_quiz, Command("quiz"))
+
+        self.router.message.register(self.start_roulette, Command("roulette"))
+
+        self.router.message.register(self.shoot_roulette, Command("shoot"))
+        self.router.message.register(self.stop_roulette, Command("stop"))
+        
         self.router.callback_query.register(self.handle_answer)
 
     # --- Команда старт ---
@@ -77,3 +87,49 @@ class BotHandlers:
         await self.bot.send_message(chat_id, f"🏁 Викторина окончена!\nТвой результат: {score} из {total}")
 
         del self.user_data[user_id]
+    
+
+    #Для игры рулетка
+    async def start_roulette(self, message: types.Message):
+        user_id = message.from_user.id
+        game = RussianRouletteGame()
+        self.roulette_games[user_id] = game
+
+        await message.answer(
+            "Игра началась!\n"
+            "В барабане 1 патрон из 6 ....\n"
+            "Нажми на /shoot чтобы стрельнуть или /stop чтобы закончить игру!"
+        )
+    
+    #метод выстрела
+    async def shoot_roulette(self, message:types.Message):
+        user_id = message.from_user.id
+        game = self.roulette_games.get(user_id)
+
+        if not game:
+            await message.answer("сначала выполни команду  /roulette")
+            return
+
+        result = game.shoot()
+
+        if result == 'click':
+            await message.answer(f'Пусто тебе повезло! Ваши очки - {game.score}')
+        
+        elif result == 'boom':
+            await message.answer(f'Тебе не повезло! Игра окончена! Ваши очки - {game.score}')
+            del self.roulette_games[user_id]
+
+    
+    #Метод для принудительной остановки игры
+    async def stop_roulette(self, message: types.Message):
+        user_id = message.from_user.id
+        game = self.roulette_games.get(user_id)
+
+
+        if not game:
+            await message.answer('Игра не запущена!')
+            return
+        
+        score = game.stop()
+        await message.answer(f'Ты остановил игру принудительно! ваши очки - {score}')
+        del self.roulette_games[user_id]
