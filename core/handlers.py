@@ -83,7 +83,7 @@ class BotHandlers:
 
         self.todo.delete(todo_id, message.from_user.id)
         await message.answer("🗑️ Удалено")
-
+#
     # ---------- START ----------
     async def start_command(self, message: types.Message):
         await message.answer(
